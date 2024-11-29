@@ -1,0 +1,503 @@
+---
+title: "MA304 - Exploratory Data Analysis and Data Visualisation"
+author: "Meghana Dhongadi Ashoka - 2310246"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## I. Introduction
+
+In this report, we analyze two datasets related to Colchester, UK in 2023: a crime dataset (crime23.csv) and a weather dataset (temp2023.csv). The objectives of this analysis are to:
+
+- Explore and visualize the patterns and trends in the crime incidents and weather conditions.
+- Investigate the relationship between weather variables.
+- Identify any spatial and temporal insights that could inform policing strategies and crime prevention initiatives.
+
+##  II. Exploratory Data Analysis (EDA)
+
+### A. Crime dataset
+
+#### **Data cleaning and preprocessing**
+```{r}
+library(tidyverse)
+library(leaflet)
+library(ggplot2)
+library(dplyr)
+
+# Read crime data
+crime_data <- read.csv("crime23.csv")
+
+# Display the structure of crime data
+str(crime_data)
+
+#dimensions of crime dataset
+dim(crime_data)
+
+# Print the first observations of crime dataset
+head(crime_data)
+
+# Remove unnecessary columns
+crime_data <- crime_data %>% select(-c(context))
+
+# convert to factors
+crime_data <- crime_data %>%
+  mutate(
+    category = as.factor(category),
+    outcome_status = as.factor(outcome_status),
+    location_type = as.factor(location_type),
+    location_subtype = as.factor(location_subtype)
+  )
+
+head(crime_data)
+
+#crime dataset variables
+names(crime_data)
+
+#checking null values
+sum(is.na(crime_data))
+```
+
+In preprocessing of crime data, initially, we read the dataset from a CSV file named "crime23.csv". Then, we displays the structure, its dimensions, and print the first few observations to understand its contents. Next, we remove the "context" column from the dataset as it is unnecessary. The code proceeds to convert several columns of the dataset into factors using the `mutate()` function, specifically converting "category," "outcome_status," "location_type," and "location_subtype" into factors. Finally, check for any missing values by calculating the sum of NA values. This process ensures that the dataset is appropriately prepared for further analysis by converting categorical variables to factors and handling any missing data.
+
+#### **Frequency of crimes by category**
+```{r}
+crime_data %>%
+  count(category) %>%
+  arrange(desc(n))
+```
+
+The distribution of crime incidents across several categories is briefly summarized in this summary, emphasizing the frequency of particular crime types within the dataset. "violent-crime" has the highest count with 2633 incidents and "drugs" has the lowest count with 208 reported incidents.
+
+#### **Geographical distribution of crimes**
+```{r}
+crime_data %>%
+  count(street_name) %>%
+  arrange(desc(n)) %>%
+  head(10)
+```
+
+This information provides insight into the distribution of incidents across different locations and can be useful for understanding patterns of crime or other events in the dataset. The most frequent street name, "On or near," occurs 495 times, indicating that a significant portion of the incidents in the dataset do not have a specific street name associated with them and are instead recorded as occurring "on or near" a location. Other specific street names such as "Shopping Area," "Supermarket," and "Parking Area" also appear frequently, suggesting areas where incidents are commonly reported
+
+#### **Temporal patterns for distribution of crime occurrences**
+```{r}
+library(ggplot2)
+library(plotly)
+#monthly patterns
+g <- ggplot(crime_data, aes(x = date, fill=date)) +
+  geom_histogram(stat = "count")  + theme_classic() + guides(fill=FALSE) +
+  labs(x = "Date", y = "Frequency", title = "Distribution of Crime Occurrences Over Time")
+ggplotly(g)
+```
+
+The distribution of crime incidents in Colchester, UK, over time is shown in the histogram plot. The months from January 2023 to December 2023 are represented by the x-axis, and the frequency of crime incidences is displayed on the y-axis.The graph displays a number of noteworthy trends. First, a distinct seasonal tendency can be seen, with a marked increase in offenses throughout the summer (June to August) as compared to the winter. T his shows that the greater crime rates during the warmer seasons may be caused by certain environmental or social factors, such as weather or increased outdoor activities. In addition, it displays the highest point on the graph—January 2023—as the peak month for criminal incidents. This can point to a particular occasion or occurrence that sparked an increase in criminal behavior at the start of the year. On the other hand, as the year draws to a close, the graph displays comparatively lower crime rates, which gradually decrease from October through December. Overall, the graph offers insightful information on Colchester's crime trends throughout 2023. Comprehending these patterns can aid law enforcement and local government organizations in creating more potent strategies for preventing and responding to crimes, optimizing resource allocation, and possibly tackling the root causes of the monthly and seasonal fluctuations in crime rates.
+
+
+
+#### **Pie Chart to Show the distribution of crime categories**
+```{r}
+# Create a table of frequencies for each crime category
+crime_freq <- table(crime_data$category)
+
+# Create a pie chart of crime categories
+pie(crime_freq, main = "Distribution of Crime Categories", cex=0.5)
+
+```
+
+The distribution of crime categories in Colchester, UK, is shown in the pie chart. The relative frequencies of the various sorts of crimes reported in the area are clearly represented visually in the chart. "Violent-crime" takes up the greatest portion of the pie, suggesting that this is the most common type of crime in Colchester. This indicates that the community and local authorities have serious concerns about matters pertaining to public disruption, annoyance, and disorderly conduct. "Criminal-damage-arson" and "anti-social-behaviour" have the next biggest slices, both of which have a significant impact on the state of crime generally. These kinds of crimes frequently have a big effect on community safety and well-being. It also includes smaller categories like "public order," "theft," and "shoplifting". The research indicates that while these less common crime types can still need attention and focused interventions, the main priorities should be addressing the more common problems of violence, property destruction, and anti-social behavior. The information offered by this pie chart can assist community organizations, law enforcement, and local government in creating more efficient plans for preventing crime, allocating funds wisely, and focusing interventions on the crimes that are most urgent in Colchester.
+
+
+#### **Bar plot of crime categories**
+```{r}
+# Bar plot of crime categories
+g <- crime_data %>%
+  count(category) %>%
+  ggplot(aes(x = fct_reorder(category, n), y = n)) +
+  geom_col(fill="#756bb1") + theme_bw() +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Bar plot of crime categories", x = "Crime category", y = "Number of crimes")
+
+ggplotly(g, height = 400, width = 600)
+```
+
+The bar plot provides a detailed breakdown of the various crime categories observed in Colchester, UK. This visualization complements the pie chart by presenting the specific counts for each crime type. Given that "violent-crime" has the tallest bar, it follows that the greatest amount of reported offenses fall into this category. This implies that dealing with violent crimes need to be a top concern for law enforcement and municipal government. The fact that the bar for "anti-social behavior" is the second-highest confirms the pie chart's results that this is a problem that is common in the community. "Shoplifting" and "criminal-damage-arson" are two more noteworthy crime categories with comparatively large numbers. In order to prevent and lessen the impact of these property-related crimes on the community, targeted measures could be necessary. The remaining crime categories, which include "vehicle-crime," "public-order," and "other-theft," have smaller but still significant numbers. Even though they might not be the most pressing problems, they shouldn't be disregarded because a thorough approach to reducing crime in the area must cover the whole range of illegal activity. A clear and succinct picture of the relative frequencies of various crime types is offered by the bar plot, which helps to inform the development of focused, evidence-based strategies to increase public safety and lower crime rates while also facilitating a greater knowledge of the unique difficulties Colchester faces.
+
+
+#### **Scatter Plot for exploring the relationship between latitude and longitude of crime incidents**
+```{r}
+library(ggplot2)
+library(plotly)
+
+# Create a scatter plot of latitude vs longitude
+g <- ggplot(crime_data, aes(x = long, y = lat, fill=lat)) +
+  geom_point() + theme_bw() + guides(fill=FALSE) + 
+  labs(x = "Longitude", y = "Latitude", title = "Crime Incidents: Latitude vs Longitude")
+ggplotly(g)
+```
+
+Plotting each crime location's latitude and longitude yields a scatter map that illustrates the spatial distribution of crime incidences in Colchester, UK. This plot offers insightful information about the regional trends in criminal activity. According to the plot, criminal incidences are not dispersed equally throughout the territory, but rather are concentrated in particular places. The presence of multiple densely concentrated data points indicates that certain places have a greater crime rate than others. These areas of high crime rates may be markers of certain neighborhoods, business districts, or other noteworthy sites that need to be the focus of more focused interventions and security measures. Furthermore, a broad range of latitude and longitude values are displayed in the scatter plot, suggesting that crimes in Colchester happen over a vast geographic area. This shows that the city as a whole has crime problems rather than just one isolated area, necessitating a thorough, multifaceted effort to address the root causes and enhance public safety. This scatter plot's spatial analysis can assist law enforcement and local authorities in identifying high-risk areas, more efficiently allocating resources, and creating place-based crime prevention strategies that cater to the particular needs and features of each neighborhood in Colchester. Policymakers are better equipped to address the issues of crime in the community when they have a better awareness of the geographic distribution of criminal activity.
+
+
+#### **Mapping of crime locations using Leaflet**
+```{r}
+# Mapping of crime locations using Leaflet
+library(leaflet)
+
+map0 <- leaflet(crime_data)%>%
+  # Base groups
+  addTiles(group = "OSM (default)") %>%
+  #change the background by using add provider tiles
+  addProviderTiles(providers$Stadia.StamenTonerLite, group = "Toner Lite") %>%
+  setView(0.901230,51.889801,  zoom = 16)
+
+#Adding Circles
+map <- map0 %>% 
+  addCircles(data = crime_data[crime_data$category=="violent-crime",], 
+              group = "Violent Crime",col="#FF0000") %>%
+  addCircles(data = crime_data[crime_data$category=="anti-social-behaviour",], 
+              group = "AntiSocial",col="#00FF00") %>%
+  addCircles(data = crime_data[crime_data$category=="criminal-damage-arson",], 
+              group = "Criminal Damage",col="#0000FF") %>%
+  addCircles(data = crime_data[crime_data$category=="shoplifting",], 
+              group = "Shoplifting",col="#FFFF00") %>%
+  addCircles(data = crime_data[crime_data$category=="public-order",], 
+              group = "Public Order",col="#00FFFF") %>%
+  addCircles(data = crime_data[crime_data$category=="other-theft",], 
+              group = "Other Theft",col="#FF00FF") %>%
+  addCircles(data = crime_data[crime_data$category=="vehicle-crime",], 
+              group = "Vehicle Crime",col="#C0C0C0") %>%
+  addCircles(data = crime_data[crime_data$category=="bicycle-theft",], 
+              group = "Bicycle Theft",col="#808080") %>%
+  addCircles(data = crime_data[crime_data$category=="burglary",], 
+              group = "Burglary",col="#800000")%>%
+  addCircles(data = crime_data[crime_data$category=="drugs",], 
+              group = "Drugs",col="#808000") %>%
+  addCircles(data = crime_data[crime_data$category=="robbery",], 
+              group = "Robbery",col="#008000")%>%
+  addCircles(data = crime_data[crime_data$category=="other-crime",], 
+              group = "Other Crime",col="#800080") %>%
+  addCircles(data = crime_data[crime_data$category=="theft-from-the-person",], 
+              group = "Theft from the Person",col="#008080") %>%
+  addCircles(data = crime_data[crime_data$category=="possession-of-weapons",], 
+              group = "Weapons",col="#000080")
+
+#Layers control
+map %>% addLayersControl(
+    baseGroups = c("OSM (default)", "Toner Lite"),
+    overlayGroups = c("Violent Crime","AntiSocial","Criminal Damage","Shoplifting","Public Order","Other   Theft","Vehicle Crime","Bicycle Theft","Burglary","Drugs","Robbery","Other Crime","Theft from the Person","Weapons"),
+    options = layersControlOptions(collapsed = TRUE))  
+```
+
+Using Leaflet, mapping of crime locations for various types of crimes is plotted. This plot is same as the scatter plot with more detailing. It is an interactive map which includes all crime types with locations.
+
+
+### B. Weather dataset
+
+#### **Data cleaning and preprocessing**:
+```{r}
+library(tidyverse)
+library(lubridate)
+
+# Read crime data
+weather_data <- read.csv("temp2023.csv")
+
+# Display the structure of crime data
+str(weather_data)
+
+# Remove unnecessary columns
+weather_data <- weather_data %>% select(-c(PreselevHp))
+
+#dimensions of crime dataset
+dim(weather_data)
+
+# Print the first observations of crime dataset
+head(weather_data)
+
+#converting variables
+weather_data <- weather_data %>%
+  mutate(
+    WindkmhDir = as.factor(WindkmhDir),
+    Precmm = as.numeric(gsub(" mm", "", Precmm)),
+    SunD1h = as.numeric(gsub(" hours", "", SunD1h)),
+    TotClOct = as.numeric(gsub(" octants", "", TotClOct)),
+    lowClOct = as.numeric(gsub(" octants", "", lowClOct)),
+    VisKm = as.numeric(gsub(" km", "", VisKm)),
+    SnowDepcm = as.numeric(gsub(" cm", "", SnowDepcm))
+  )
+
+# Check for missing values in each column
+missing_values <- colSums(is.na(weather_data))
+
+# Print the columns with missing values
+print(names(weather_data)[missing_values > 0])
+
+# Check for missing values
+sum(is.na(weather_data))
+
+# Columns for mean imputation
+columns_to_impute <- c("Precmm", "lowClOct", "SunD1h", "SnowDepcm")
+
+# Iterate over columns and perform mean imputation
+for (col in columns_to_impute) {
+  # Calculate the mean for the column
+  mean_val <- mean(weather_data[[col]], na.rm = TRUE)
+  
+  # Impute missing values with the mean
+  weather_data[[col]][is.na(weather_data[[col]])] <- mean_val
+}
+
+# Check if there are still any missing values
+if (sum(is.na(weather_data[, columns_to_impute])) > 0) {
+  print("Warning: Missing values remain after mean imputation.")
+} else {
+  print("Mean imputation successful.")
+}
+
+#missing values
+sum(is.na(weather_data))
+
+head(weather_data)
+```
+
+In preprocessing of weather data, initially, we read the dataset from a CSV file named "temp2023.csv" providing insights into its variables and their types. Then, unnecessary columns are removed using the select() function, streamlining the dataset's dimensions. Then we proceed to convert certain variables to appropriate types, such as factors and numerics, ensuring consistency and facilitating subsequent analysis. Following this, missing values in each column are identified and printed, and then perform mean imputation for specific columns with missing values, ensuring data completeness.
+
+
+#### **Summary of temperature, precipitation, and wind variables**
+```{r}
+library(dplyr)  # For data manipulation
+library(tidyr)  # For data tidying
+
+# Summary statistics for temperature
+temperature_summary <- weather_data %>%
+  summarise(
+    Mean_Temperature = mean(TemperatureCAvg, na.rm = TRUE),
+    Median_Temperature = median(TemperatureCAvg, na.rm = TRUE),
+    Min_Temperature = min(TemperatureCMin, na.rm = TRUE),
+    Max_Temperature = max(TemperatureCMax, na.rm = TRUE),
+    SD_Temperature = sd(TemperatureCAvg, na.rm = TRUE)
+  )
+
+# Summary statistics for precipitation
+precipitation_summary <- weather_data %>%
+  summarise(
+    Total_Precipitation = sum(Precmm, na.rm = TRUE),
+    Mean_Precipitation = mean(Precmm, na.rm = TRUE),
+    Max_Precipitation = max(Precmm, na.rm = TRUE)
+  )
+
+# Summary statistics for wind
+wind_summary <- weather_data %>%
+  summarise(
+    Mean_Wind_Speed = mean(WindkmhInt, na.rm = TRUE),
+    Max_Wind_Speed = max(WindkmhGust, na.rm = TRUE)
+  )
+
+# Display the summaries
+print("Summary of Temperature:")
+print(temperature_summary)
+
+print("Summary of Precipitation:")
+print(precipitation_summary)
+
+print("Summary of Wind:")
+print(wind_summary)
+```
+
+For temperature, we calculate the mean, median, minimum, maximum, and standard deviation. The summary statistics for temperature variables provide a comprehensive overview of the temperature distribution, capturing central tendency, variability, and extreme values within the dataset. The value "Mean_Temperature" is the mean temperature that was recorded, which was determined to be roughly 10.92 degrees Celsius. When the values are sorted in ascending order, the "Median_Temperature" represents the median value, or roughly 10.4 degrees Celsius, in the dataset. "Min_Temperature" indicates the lowest temperature ever recorded, which is -6.2 degrees Celsius, and "Max_Temperature" indicates the highest temperature ever recorded, which is 30.4 degrees Celsius. Furthermore, "SD_Temperature" denotes the temperature measurements' standard deviation, indicating a variance of roughly 5.53 degrees Celsius around the mean.
+
+For precipitation, we calculate the total precipitation, mean precipitation, and maximum precipitation. The key statistics related to precipitation data provide insights into the distribution and intensity of precipitation over a given period, offering valuable information for various applications, such as agriculture, water resource management, and climate analysis. The total amount of precipitation, or an average of roughly 680.97 units, is represented by the "Total_Precipitation" parameter. The value "Mean_Precipitation" represents the average precipitation, which is 1.87 units. Finally, "Max_Precipitation" indicates the maximum amount of precipitation ever measured, at 33.6 units.
+
+For wind, we calculate the mean wind speed and maximum wind speed. These statistics provide insights into the typical and extreme wind conditions observed within the dataset, which could be crucial for various analyses, such as assessing wind-related risks or understanding weather patterns. The Mean_Wind_Speed variable has a value of approximately 16.81, likely denoting the average wind speed, while the Max_Wind_Speed variable shows a value of 98.2, possibly representing the maximum wind speed recorded during a specific period. 
+
+
+#### **Correlation analysis between weather variables**
+```{r}
+# Correlation analysis between weather variables
+
+library(ggcorrplot)  # For correlation plot
+
+# Select relevant columns from the weather data
+weather_subset <- weather_data %>%
+  select(TemperatureCAvg, TemperatureCMax, TemperatureCMin, TdAvgC, HrAvg, WindkmhInt, WindkmhGust, TotClOct, lowClOct, SunD1h, VisKm, PresslevHp, Precmm)
+
+# Calculate correlation matrix
+corr_weather <- round(cor(weather_subset),1)
+
+#Visualize the correlation matrix: method = "square" (default)
+G1 <- ggcorrplot(corr_weather, hc.order = TRUE, type = "lower", lab = TRUE, lab_size = 3)
+
+ggplotly(G1)
+```
+
+The correlation matrix presented in the image provides insights into the relationships between various weather variables in Colchester, UK. The matrix displays a combination of positive and negative correlations, with the color and numerical values indicating how strong the links are. The variables TemperatureCMax and TemperatureCAvg, as well as TemperatureCMin and TemperatureCAvg, have the largest positive associations (highlighted in dark red). This implies that there is a strong correlation between these temperature-related measurements, with the minimum temperature tending to grow as the maximum and average temperatures do. On the other hand, the matrix indicates significant negative correlations (purple) between variables such as WindkmhInt and TemperatureCMax, as well as WindkmhInt and TemperatureCMin. This suggests that lower temperatures, both at their greatest and minimum, are linked to higher wind speeds. The cooling impact of wind on the regional climate is probably the cause of this association. Other interesting connections show that lower precipitation levels are generally related with warmer temperatures. These include the negative correlation between TemperatureCAvg and Precmm and the positive relationship between Precmm (precipitation) and lowClOct (low-level cloud cover). An extensive overview of the interdependencies between many climatic parameters in Colchester is given by this correlation matrix. Researchers and local authorities may more effectively assess how weather affects variables like crime rates, public health, and other facets of the surrounding environment and community by having a greater understanding of these linkages.
+
+
+#### **Time series plot of temperature over time**
+
+```{r}
+library(xts)
+tsdates <- ymd(weather_data$Date)
+tempavg <- weather_data$TemperatureCAvg
+length(tsdates)
+length(tempavg)
+tstemp <- xts(data.frame(Cases = tempavg), order.by = tsdates)
+autoplot(tstemp, facet=NULL)+ labs(x="Dates", y="Average Temperature", title="Time Series plot of average temperature")+theme_bw()
+```
+
+From the above time series plot, althought it is quite noisy, the plot clearly shows a seasonal pattern, with summer temperatures (June to August) being higher and winter temperatures (December to February) frequently lower. In a temperate region, this is the normal temperature pattern. There is a lot of variation in the temperature readings from day to day and week to week, with regular ups and downs all year long. This implies that the weather in the area is highly variable, with swift shifts in temperature. Notable is the size of the temperature variations, which have peaks at about 20°C and dips below 0°C. This broad range of temperature readings suggests a continental climate with clear seasonal differences. A few exceptionally extreme temperature episodes, like the sudden increase in late July and the significant decrease in early December, seem to be present. These anomalies might be heat waves, frigid spells, or other atypical meteorological occurrences. Overall, the tendency indicates that the year's temperature gradually drops from the start to the finish, with the hottest months coming around the end. In areas with moderate temperatures, this is a typical pattern.
+
+
+#### Smoothed plot
+
+```{r}
+## Weekly Moving Average smoothing 
+library(forecast)
+ma7 <- forecast::ma(tempavg, 7) 
+## Makes a 2-variable time series
+tstemp <- xts(data.frame(Cases=tempavg,ma7=ma7),tsdates)
+## and plots them 
+## plot(tscases,main = "Daily New COVID-19 Cases",col=c("darkgrey","red"))
+autoplot(tstemp,facet=NULL)+
+geom_line(size=1.1) +
+scale_color_manual( values = c("darkgrey","blue"))+ labs(x="Dates", y="Average Temperature", title="Time Series plot of average temperature")+theme_bw()
+```
+
+As seen in the earlier analysis, the broad seasonal trend is still visible, with summer temperatures being higher and winter temperatures being lower. Throughout the year, there are repeated spikes and dips in the "Cases" line, which indicates the great variety in day-to-day and week-to-week weather conditions. The temperature data's 7-day moving average is shown by the "ma7" line. By smoothing out the short-term oscillations, the temperature data's underlying trends and patterns can be seen more clearly. The seasonal cycle is more noticeable on the "ma7" line, where the summer and winter seasons are represented by separate peaks and troughs. This shows that the cyclical character of the temperature variations is highlighted by the 7-day average. The entire temperature range seems to be a little bit less than it was in the previous plot, with the greatest temperatures reaching about 18°C and the lowest about -5°C. This could point to a slightly milder continental climate.
+
+Although the original "Cases" line preserved important information about the short-term fluctuations, the addition of the 7-day moving average line ("ma7") improves the interpretation of the temperature data by enabling a better understanding of the underlying seasonal patterns and trends.
+
+
+#### **Time Series Plot of Precipitation and Cloudiness**
+
+```{r}
+#create the xts object
+library(xts)
+wd <- ymd(weather_data$Date)
+ccts<- xts(weather_data[,c("Precmm","TotClOct")],wd)
+
+library(ggplot2)
+gts <- autoplot(ccts,facet=NULL) + labs(x="Dates", y="Precipitation and Cloudiness", title="Time Series plot of precipitation and cloudiness")+theme_bw()
+gts
+
+#Smoothed version
+colma=xts(as.data.frame(forecast::ma(ccts$Precmm, 12) ),wd)
+crestma=xts(as.data.frame(forecast::ma(ccts$TotClOct, 12) ),wd)
+merts<- merge(crestma,colma)
+names(merts) <- c("Precmm MA","TotClOct MA")
+autoplot(merts,facets=NULL)+ labs(x="Dates", y="Precipitation and Cloudiness", title="Moving Average Time Series plot of precipitation and cloudiness") +theme_bw()
+```
+
+Over the course of the time period in Colchester weather data in 2023, there is a noticeable fluctuation in both the quantities of precipitation and cloudiness, with both variables displaying dramatic peaks and valleys. This implies that the region's weather is extremely erratic and subject to sudden changes. There seems to be some correlation between the patterns of precipitation and cloudiness; increases in one measure frequently coincide to increases in the other. This makes sense because there is usually a correlation between increased cloud cover and precipitation. Over the course of the year, there appears to be a falling overall trend in both variables, with the peaks and valleys becoming less noticeable as time goes on. This can point to a change in the local climate or weather patterns. The time series plot provides a valuable visualization of the temporal dynamics of precipitation and cloudiness, which can be useful for understanding and potentially predicting weather patterns in Colchester region.
+
+
+#### **Histogram plot of Temperature**
+
+```{r}
+# Determine the maximum frequency
+max_freq <- max(table(cut(weather_data$TemperatureCAvg, breaks = 30)))
+
+# Creating the histogram
+g1 <-ggplot(weather_data, aes(x = TemperatureCAvg)) +
+  geom_histogram(binwidth = 1, fill = "gold") +
+  labs(title = "Histogram of Temperature", x = "Temperature (°C)", y = "Frequency") + theme_bw() +
+  annotate("text", x = 9, y = max_freq, label = "9 °C", vjust = 1.5, hjust = 0.5, color = "black", size = 3)
+ggplotly(g1)
+```
+
+Temperature distribution in Colchester city is shown in the histogram figure. The temperature distribution clearly peaks at approximately 9°C, which suggests that this is the most commonly observed temperature value.
+The distribution is positively skewed, with the right side of the plot having a longer tail. According to this, there may be a greater number of extremely high temperature values than extremely low temperature values. There is a sharp decline in frequency for temperatures outside of the range of 5°C to 15°C, where the majority of the temperature data are found. The lesser peaks at 16°C and 20°C show that there are a few isolated high temperature readings. These can stand for sporadic heat waves or very warm weather.
+
+The histogram's general form is unimodal, indicating that the distribution has a single, dominating peak. This suggests that there is only one core tendency in the temperature data rather than a number of different modes or peaks. The temperature distribution is clearly shown visually by the histogram, making it simple to see the spread, central tendency, and any outliers or extreme values. This information can be useful for understanding the typical temperature conditions in the region and identifying any unusual or extreme temperature events that may have occurred during the time period.
+
+
+#### **Density plot of Temperature**
+```{r}
+#creating the density plot
+g2 <- ggplot(weather_data, aes(x = TemperatureCAvg)) +
+  geom_density(kernel="gaussian",col=1) +
+  labs(title = "Density plot of Temperature", x = "Temperature (°C)", y = "Frequency") + theme_bw() 
+ggplotly(g2)
+```
+
+A clear picture of the temperature distribution in Colchester city is given by the density plot, which also highlights different patterns same as histogram plot. It is noteworthy because it displays a bimodal distribution with two notable peaks. The temperatures that occur most frequently are indicated by the first peak, which is centered at 9°C, and the second peak, which is roughly at 17°C. The density stays fairly constant between these peaks, suggesting a reasonable frequency of temperatures in this range. But for temperatures below 9°C and above 17°C, frequencies decrease significantly, indicating a reduced prevalence. Overall, this bimodal distribution reveals two different temperature conditions or groups that are common in the dataset, providing important information for comprehending seasonal fluctuations, climate dynamics, and other temperature-related phenomena.
+
+
+#### **Box Plot of Temperature by Month**
+```{r}
+# Box plot of temperature variables
+gbp <- ggplot(weather_data, aes(x = factor(month(Date)), y = TemperatureCAvg, fill=factor(month(Date)))) +
+  geom_boxplot() + theme_classic() + guides(fill=FALSE) +
+  labs(title = "Box Plot of Temperature by Month", x = "Month", y = "Temperature (°C)")
+ggplotly(gbp)
+
+```
+
+The box plot provides a thorough picture of the distribution of temperatures in several months, highlighting unique seasonal trends. The middle 50% of the temperature data is represented by the interquartile range (IQR), which is shown by the boxes. A line within each box indicates the median temperature. During months 1 through 7, the boxes are noticeably lower, signifying cooler temperatures typical of winter and early spring. On the other hand, the boxes rise on the y-axis from months 5 to 9, which represents higher temperatures connected to late spring and summer. The boxes then start to decrease once more in months 10 and 12, denoting the return of colder autumn and early winter weather. Furthermore, outliers are indicated by black dots above or below the boxes; these are situations where the average temperature significantly deviates from the mean. 
+Overall, this box plot effectively captures the seasonal temperature fluctuations, offering valuable insights for understanding climate dynamics and facilitating informed decision-making.
+
+
+#### **Violin plot of weather variables**
+```{r}
+# Violin plot of wind variables
+gvp <-ggplot(weather_data, aes(x = factor(month(Date)), y = WindkmhInt, color = factor(month(Date)))) +
+  geom_violin() + theme_classic() + guides(fill=FALSE) +
+  stat_summary(fun = median, geom='point') +
+  labs(title = "Violin plot of wind variables", x = "Month", y = "Wind speed (km/h)")
+ggplotly(gvp)
+```
+
+By displaying clear seasonal trends, the violin plot provides insightful information about how wind speeds are distributed across the course of the months. The breadth of each colored violin form represents the frequency of wind speeds at various levels, and each colored shape represents a certain month. The median wind speed for each month is shown by the white dot inside each plot. Seasonal fluctuations are evident in the observations: the boxes are relatively low during the colder months (1 to 4), indicating lower wind speeds typical of winter circumstances. On the other hand, the boxes grow higher on the y-axis from months 5 to 9, which represents increasing wind speeds in late spring and summer. Then, as fall and early winter (months 10 to 12) draw near, the boxes start to descend once more, indicating that the wind speed will diminish. Overall, this plot does a good job of capturing seasonal wind patterns and offers insightful information that can be used to better plan outdoor activities, comprehend climatic dynamics, and evaluate wind-related risks.
+
+
+#### **Hexbins of Temperature vs. Precipitation**
+
+```{r}
+# Load necessary libraries
+library(hexbin)
+library(ggplot2)
+
+# Create a hexbin plot for temperature and precipitation
+ghb <- ggplot(weather_data, aes(x = Precmm, y = TemperatureCAvg)) +
+  stat_binhex() + theme_bw() +
+  scale_fill_gradient(low = "lightblue", high = "red", breaks = c(0,30),limits = c(0, 30)) +
+  labs(title = "Hexbin Plot of Temperature vs. Precipitation",
+       x = "Temperature (°C)",
+       y = "Precipitation (mm)")
+ggplotly(ghb,height = 400,width = 600)
+```
+
+The hexbin plot reveals distinct patterns and provides insightful information on the relationship between temperature and precipitation. The color of each hexagon denotes the number of data points it contains, and each hexagon itself represents a bin. The following patterns of temperature and precipitation are highlighted by the observations: as these bins' vivid hue suggests, a concentration of data points occurs at lower temperatures (0-10°C) and lower precipitation levels (0-5 mm). Moreover, data point concentration noticeably decreases with temperature, indicating a decrease in the frequency of higher temperatures combined with low precipitation levels. Overall, this graphic does a good job of conveying how temperature and precipitation together affect the dataset, providing information that is useful for environmental monitoring, agricultural planning, and climate studies.
+
+
+#### **Pairs plot to explore relationships between weather variables**
+
+```{r}
+weather_data %>%
+  select(TemperatureCAvg, Precmm, WindkmhInt, SunD1h) %>%
+  pairs()
+```
+
+Key insights into the correlations between the TemperatureCavg, Precmm, WindkmhInt, and SunD1h variables are revealed by the pair plot, which displays scatter plots for these variables. The positive association between SunD1h (hours of sunlight) and TemperatureCavg (average temperature) is a noteworthy finding, suggesting that higher temperatures are associated with more sun exposure. Dispersed data points lacking clear trends, however, indicate that WindkmhInt (wind speed in km/h at intervals) and Precmm (precipitation in mm) do not show significant associations with other variables. Overall, this pair plot provides insightful information about how various weather-related factors interact, information that may be used to improve forecasting models, seasonal patterns, and climate studies.
+
+
+
+
+##  III. Conclusion
+
+The analysis of crime incidents and weather data in Colchester, UK during 2023 has provided valuable insights that can inform local authorities and law enforcement in developing more effective crime prevention and response strategies. 
+
+For crime data, we visualized and analyzed temporal patterns for distribution of crime occurrences using histogram, pie Chart to Show the distribution of crime categories, Bar plot of crime categories, Scatter Plot for exploring the relationship between latitude and longitude of crime incidents, and mapping of crime locations using Leaflet. Through all these plots, we got a clear insight into crime data of Colchester for the year 2023.
+
+For weather data, we visualized and analyzed Correlation analysis between weather variables, Time series plot of temperature over time, Time Series Plot of Precipitation and Cloudiness, Histogram plot of Temperature, Density plot of Temperature, Box Plot of Temperature by Month, Violin plot of weather variables, Hexbins of Temperature vs. Precipitation, and Pairs plot to explore relationships between weather variables. Through all these plots, we got a clear insight into weather data of Colchester for the year 2023.
+
+
+
+
